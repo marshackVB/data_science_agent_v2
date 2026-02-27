@@ -2,13 +2,14 @@
 Bank Marketing classification: predict if client subscribes to term deposit (y).
 
 Optimizes F1 score via Optuna hyperparameter tuning. Logs to MLflow.
+Includes feature engineering from EDA: high_season, poutcome_success, prior contact flags.
 """
 
 import os
 import mlflow
 from sklearn.compose import ColumnTransformer
 from sklearn.metrics import f1_score, classification_report
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 import optuna
@@ -31,6 +32,8 @@ MLFLOW_EXPERIMENT = "/Users/marshall.carter@databricks.com/agent_experiment_v2"
 # Exclude duration: known only after call; inclusion would inflate metrics unrealistically
 NUMERIC_FEATURES = ["age", "balance", "day", "campaign", "pdays", "previous"]
 CATEGORICAL_FEATURES = ["job", "marital", "education", "default", "housing", "loan", "contact", "month", "poutcome"]
+# Engineered from EDA: high_season (mar/sep/oct/dec ~45-52%), poutcome_success (64.7%), prior contact flags
+ENGINEERED_FEATURES = ["poutcome_success", "high_season", "was_contacted_before", "has_prior_contacts"]
 TARGET = "y"
 
 
@@ -45,13 +48,24 @@ def load_data(spark, sample_fraction: float | None = None):
     return pdf
 
 
+def add_engineered_features(df):
+    """Add features from EDA: high_season, poutcome_success, prior contact flags."""
+    df = df.copy()
+    df["poutcome_success"] = (df["poutcome"] == "success").astype(int)
+    df["high_season"] = df["month"].str.lower().isin(["mar", "sep", "oct", "dec"]).astype(int)
+    df["was_contacted_before"] = (df["pdays"] >= 0).astype(int)
+    df["has_prior_contacts"] = (df["previous"] > 0).astype(int)
+    return df
+
+
 def get_preprocessor():
-    """Build sklearn preprocessor for numeric + categorical features."""
+    """Build sklearn preprocessor for numeric + engineered + categorical features."""
     numeric_transformer = StandardScaler()
     categorical_transformer = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+    all_numeric = NUMERIC_FEATURES + ENGINEERED_FEATURES
     preprocessor = ColumnTransformer(
         transformers=[
-            ("num", numeric_transformer, NUMERIC_FEATURES),
+            ("num", numeric_transformer, all_numeric),
             ("cat", categorical_transformer, CATEGORICAL_FEATURES),
         ]
     )
@@ -70,7 +84,8 @@ def train_with_optuna(X, y, n_trials: int = 50):
         min_child_weight = trial.suggest_int("min_child_weight", 1, 10)
         reg_alpha = trial.suggest_float("reg_alpha", 1e-4, 10.0, log=True)
         reg_lambda = trial.suggest_float("reg_lambda", 1e-4, 10.0, log=True)
-        scale_pos_weight = trial.suggest_float("scale_pos_weight", 1.0, 10.0)
+        # Imbalance ~7.5:1; allow up to 15 for tuning
+        scale_pos_weight = trial.suggest_float("scale_pos_weight", 1.0, 15.0)
 
         pipe = Pipeline([
             ("preprocessor", get_preprocessor()),
@@ -112,12 +127,18 @@ def run_training(
     from get_spark import get_spark
     spark = get_spark()
     df = load_data(spark, sample_fraction=sample_fraction)
+    df = add_engineered_features(df)
 
-    X = df[NUMERIC_FEATURES + CATEGORICAL_FEATURES]
+    X = df[NUMERIC_FEATURES + ENGINEERED_FEATURES + CATEGORICAL_FEATURES]
     y = (df[TARGET] == "yes").astype(int)
 
+    # Stratified train/test split for unbiased evaluation
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, stratify=y, random_state=42
+    )
+
     with mlflow.start_run():
-        study = train_with_optuna(X, y, n_trials=n_trials)
+        study = train_with_optuna(X_train, y_train, n_trials=n_trials)
         best_params = study.best_params
 
         mlflow.log_params(best_params)
@@ -132,16 +153,21 @@ def run_training(
                 n_jobs=-1,
             )),
         ])
-        pipe.fit(X, y)
-        y_pred = pipe.predict(X)
-        f1 = f1_score(y, y_pred, average="macro")
-        mlflow.log_metric("train_f1_macro", f1)
+        pipe.fit(X_train, y_train)
+        y_train_pred = pipe.predict(X_train)
+        y_test_pred = pipe.predict(X_test)
+        train_f1 = f1_score(y_train, y_train_pred, average="macro")
+        test_f1 = f1_score(y_test, y_test_pred, average="macro")
+        mlflow.log_metric("train_f1_macro", train_f1)
+        mlflow.log_metric("test_f1_macro", test_f1)
 
         mlflow.sklearn.log_model(pipe, "model")
 
         print(f"Best CV F1 (macro): {study.best_value:.4f}")
-        print(f"Train F1 (macro): {f1:.4f}")
-        print(classification_report(y, y_pred, target_names=["no", "yes"]))
+        print(f"Train F1 (macro): {train_f1:.4f}")
+        print(f"Test F1 (macro): {test_f1:.4f}")
+        print("\nTest set classification report:")
+        print(classification_report(y_test, y_test_pred, target_names=["no", "yes"]))
 
     return study, pipe
 
