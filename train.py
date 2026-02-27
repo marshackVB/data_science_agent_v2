@@ -99,7 +99,7 @@ def get_classifier(model_type: str, params: dict, random_state: int = 42):
         return lgb.LGBMClassifier(**params, random_state=random_state, n_jobs=-1, verbosity=-1)
     if model_type == "catboost":
         import catboost as cb
-        return cb.CatBoostClassifier(**params, random_state=random_state, thread_count=-1, verbose=0)
+        return cb.CatBoostClassifier(**params, random_state=random_state, thread_count=-1, verbose=0, allow_writing_files=False)
     raise ValueError(f"Unknown model_type: {model_type}")
 
 
