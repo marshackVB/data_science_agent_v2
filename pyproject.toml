@@ -1,0 +1,19 @@
+[project]
+name = "data-science-agent-v2"
+version = "0.1.0"
+description = "Bank marketing classification - F1-optimized training pipeline"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "optuna",
+    "mlflow-skinny",
+    "pyspark",
+    "databricks-connect",
+    "python-dotenv",
+    "zstandard",
+]
+
+[dependency-groups]
+dev = ["pytest"]

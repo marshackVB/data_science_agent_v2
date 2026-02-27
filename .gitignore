@@ -1,0 +1,28 @@
+# Virtual env
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# IDE / OS
+.idea/
+.cursor/
+.DS_Store
+*.swp
+
+# Coverage
+.coverage
+
+# Env files (secrets)
+.env
+.env.local
+
+# uv (uv.lock is typically committed for reproducibility)
+.python-version

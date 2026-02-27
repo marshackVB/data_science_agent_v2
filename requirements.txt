@@ -1,0 +1,3 @@
+# Extras for Databricks job (base env v4 provides numpy, pandas, scikit-learn, mlflow-skinny)
+# Pin versions for reproducibility
+optuna>=3.0.0
