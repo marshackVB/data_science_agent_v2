@@ -161,11 +161,28 @@ def run_training(
         mlflow.log_metric("train_f1_macro", train_f1)
         mlflow.log_metric("test_f1_macro", test_f1)
 
+        # Log feature importances for model interpretability
+        preprocessor = pipe.named_steps["preprocessor"]
+        classifier = pipe.named_steps["classifier"]
+        feature_names = preprocessor.get_feature_names_out()
+        importances = classifier.feature_importances_
+        importance_dict = dict(zip(feature_names, importances.tolist()))
+        mlflow.log_dict(importance_dict, "feature_importance.json")
+        # Log top 10 as params for easy comparison across runs
+        sorted_importances = sorted(
+            zip(feature_names, importances), key=lambda x: x[1], reverse=True
+        )
+        for i, (name, imp) in enumerate(sorted_importances[:10]):
+            mlflow.log_param(f"importance_rank_{i+1}", f"{name}: {imp:.4f}")
+
         mlflow.sklearn.log_model(pipe, "model")
 
         print(f"Best CV F1 (macro): {study.best_value:.4f}")
         print(f"Train F1 (macro): {train_f1:.4f}")
         print(f"Test F1 (macro): {test_f1:.4f}")
+        print("\nTop 10 feature importances:")
+        for name, imp in sorted_importances[:10]:
+            print(f"  {name}: {imp:.4f}")
         print("\nTest set classification report:")
         print(classification_report(y_test, y_test_pred, target_names=["no", "yes"]))
 
