@@ -58,7 +58,7 @@ def get_preprocessor():
     return preprocessor
 
 
-def train_with_optuna(X, y, n_trials: int = 20):
+def train_with_optuna(X, y, n_trials: int = 50):
     """Run Optuna study to maximize F1 (macro) via cross-validation."""
 
     def objective(trial):
@@ -98,7 +98,7 @@ def train_with_optuna(X, y, n_trials: int = 20):
 
 def run_training(
     sample_fraction: float | None = None,
-    n_trials: int = 20,
+    n_trials: int = 50,
 ):
     """
     Full training workflow: load data, tune with Optuna, fit best model, log to MLflow.
