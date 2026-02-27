@@ -14,6 +14,8 @@ dependencies = [
     "python-dotenv",
     "zstandard",
     "xgboost",
+    "lightgbm",
+    "catboost",
 ]
 
 [dependency-groups]

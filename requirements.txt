@@ -8,3 +8,5 @@ optuna==4.7.0
 mlflow-skinny==3.10.0
 zstandard==0.25.0
 xgboost==3.2.0
+lightgbm==4.6.0
+catboost==1.2.10
