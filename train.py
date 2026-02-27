@@ -31,9 +31,10 @@ MLFLOW_EXPERIMENT = "/Users/marshall.carter@databricks.com/agent_experiment_v2"
 # Feature columns (exclude target y)
 # Exclude duration: known only after call; inclusion would inflate metrics unrealistically
 NUMERIC_FEATURES = ["age", "balance", "day", "campaign", "pdays", "previous"]
-CATEGORICAL_FEATURES = ["job", "marital", "education", "default", "housing", "loan", "contact", "month", "poutcome"]
-# Engineered from EDA: high_season (mar/sep/oct/dec ~45-52%), poutcome_success (64.7%), prior contact flags
-ENGINEERED_FEATURES = ["poutcome_success", "high_season", "was_contacted_before", "has_prior_contacts"]
+# Exclude poutcome - use engineered poutcome_success instead (reduces redundancy)
+CATEGORICAL_FEATURES = ["job", "marital", "education", "default", "housing", "loan", "contact", "month"]
+# Engineered: poutcome_success (64.7%), high_season (mar/sep/oct/dec ~45-52%), contact_unknown (4.1%), prior contact
+ENGINEERED_FEATURES = ["poutcome_success", "high_season", "contact_unknown", "was_contacted_before", "has_prior_contacts"]
 TARGET = "y"
 
 
@@ -49,10 +50,11 @@ def load_data(spark, sample_fraction: float | None = None):
 
 
 def add_engineered_features(df):
-    """Add features from EDA: high_season, poutcome_success, prior contact flags."""
+    """Add features from EDA and feature importance: poutcome_success, high_season, contact_unknown, prior contact."""
     df = df.copy()
     df["poutcome_success"] = (df["poutcome"] == "success").astype(int)
     df["high_season"] = df["month"].str.lower().isin(["mar", "sep", "oct", "dec"]).astype(int)
+    df["contact_unknown"] = (df["contact"].str.lower() == "unknown").astype(int)
     df["was_contacted_before"] = (df["pdays"] >= 0).astype(int)
     df["has_prior_contacts"] = (df["previous"] > 0).astype(int)
     return df
@@ -180,9 +182,9 @@ def run_training(
         print(f"Best CV F1 (macro): {study.best_value:.4f}")
         print(f"Train F1 (macro): {train_f1:.4f}")
         print(f"Test F1 (macro): {test_f1:.4f}")
-        print("\nTop 10 feature importances:")
-        for name, imp in sorted_importances[:10]:
-            print(f"  {name}: {imp:.4f}")
+        print("\nFeature importances (all, sorted):")
+        for name, imp in sorted_importances:
+            print(f"  {name}: {imp:.6f}")
         print("\nTest set classification report:")
         print(classification_report(y_test, y_test_pred, target_names=["no", "yes"]))
 
