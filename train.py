@@ -91,16 +91,15 @@ def get_preprocessor(categorical_features: list[str], numeric_features: list[str
 
 def get_classifier(model_type: str, params: dict, random_state: int = 42):
     """Return classifier instance for model_type with given params."""
-    common = {"random_state": random_state, "n_jobs": -1}
     if model_type == "xgboost":
         from xgboost import XGBClassifier
-        return XGBClassifier(**params, **common)
+        return XGBClassifier(**params, random_state=random_state, n_jobs=-1)
     if model_type == "lightgbm":
         import lightgbm as lgb
-        return lgb.LGBMClassifier(**params, **common, verbosity=-1)
+        return lgb.LGBMClassifier(**params, random_state=random_state, n_jobs=-1, verbosity=-1)
     if model_type == "catboost":
         import catboost as cb
-        return cb.CatBoostClassifier(**params, **common, verbose=0)
+        return cb.CatBoostClassifier(**params, random_state=random_state, thread_count=-1, verbose=0)
     raise ValueError(f"Unknown model_type: {model_type}")
 
 
