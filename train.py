@@ -177,7 +177,7 @@ def train_with_optuna(X, y, n_trials: int, model_type: str, numeric_cols: list[s
 def run_training(
     sample_fraction: float | None = None,
     n_trials: int = 50,
-    model_type: str = "xgboost",
+    model_type: str = "catboost",
 ):
     """
     Full training workflow: load data, tune with Optuna, fit best model, log to MLflow.
@@ -277,6 +277,6 @@ def run_training(
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default="xgboost", choices=["xgboost", "lightgbm", "catboost"], help="Model type to train")
+    parser.add_argument("--model", default="catboost", choices=["xgboost", "lightgbm", "catboost"], help="Model type to train")
     args, _ = parser.parse_known_args()  # Ignore job-injected params (--job-id, --job-run-id)
     run_training(model_type=args.model)
