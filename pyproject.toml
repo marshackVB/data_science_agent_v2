@@ -13,6 +13,7 @@ dependencies = [
     "databricks-connect",
     "python-dotenv",
     "zstandard",
+    "xgboost",
 ]
 
 [dependency-groups]

@@ -1,3 +1,10 @@
-# Extras for Databricks job (base env v4 provides numpy, pandas, scikit-learn, mlflow-skinny)
-# Pin versions for reproducibility
-optuna>=3.0.0
+# Databricks job dependencies (versions from local venv; exclude local-only: databricks-connect, python-dotenv)
+# Base env v4 provides numpy, pandas, scikit-learn, mlflow-skinny
+# Do NOT include pyspark - it is built into the Databricks runtime
+numpy==2.2.6
+pandas==2.3.3
+scikit-learn==1.7.2
+optuna==4.7.0
+mlflow-skinny==3.10.0
+zstandard==0.25.0
+xgboost==3.2.0

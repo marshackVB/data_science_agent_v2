@@ -7,12 +7,12 @@ Optimizes F1 score via Optuna hyperparameter tuning. Logs to MLflow.
 import os
 import mlflow
 from sklearn.compose import ColumnTransformer
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import f1_score, classification_report
 from sklearn.model_selection import cross_val_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 import optuna
+from xgboost import XGBClassifier
 
 # Load .env when running locally
 if not os.getenv("DATABRICKS_RUNTIME_VERSION"):
@@ -62,20 +62,28 @@ def train_with_optuna(X, y, n_trials: int = 20):
     """Run Optuna study to maximize F1 (macro) via cross-validation."""
 
     def objective(trial):
-        n_estimators = trial.suggest_int("n_estimators", 50, 300)
-        max_depth = trial.suggest_int("max_depth", 5, 30)
-        min_samples_split = trial.suggest_int("min_samples_split", 2, 20)
-        min_samples_leaf = trial.suggest_int("min_samples_leaf", 1, 10)
-        class_weight = trial.suggest_categorical("class_weight", ["balanced", "balanced_subsample", None])
+        n_estimators = trial.suggest_int("n_estimators", 100, 500)
+        max_depth = trial.suggest_int("max_depth", 3, 12)
+        learning_rate = trial.suggest_float("learning_rate", 0.01, 0.3, log=True)
+        subsample = trial.suggest_float("subsample", 0.6, 1.0)
+        colsample_bytree = trial.suggest_float("colsample_bytree", 0.6, 1.0)
+        min_child_weight = trial.suggest_int("min_child_weight", 1, 10)
+        reg_alpha = trial.suggest_float("reg_alpha", 1e-4, 10.0, log=True)
+        reg_lambda = trial.suggest_float("reg_lambda", 1e-4, 10.0, log=True)
+        scale_pos_weight = trial.suggest_float("scale_pos_weight", 1.0, 10.0)
 
         pipe = Pipeline([
             ("preprocessor", get_preprocessor()),
-            ("classifier", RandomForestClassifier(
+            ("classifier", XGBClassifier(
                 n_estimators=n_estimators,
                 max_depth=max_depth,
-                min_samples_split=min_samples_split,
-                min_samples_leaf=min_samples_leaf,
-                class_weight=class_weight,
+                learning_rate=learning_rate,
+                subsample=subsample,
+                colsample_bytree=colsample_bytree,
+                min_child_weight=min_child_weight,
+                reg_alpha=reg_alpha,
+                reg_lambda=reg_lambda,
+                scale_pos_weight=scale_pos_weight,
                 random_state=42,
                 n_jobs=-1,
             )),
@@ -116,14 +124,10 @@ def run_training(
         mlflow.log_metric("best_cv_f1_macro", study.best_value)
 
         # Fit final model on full training data with best params
-        clf_params = {k: v for k, v in best_params.items() if k != "class_weight"}
-        class_weight = best_params.get("class_weight")
-        if class_weight is not None:
-            clf_params["class_weight"] = class_weight
         pipe = Pipeline([
             ("preprocessor", get_preprocessor()),
-            ("classifier", RandomForestClassifier(
-                **clf_params,
+            ("classifier", XGBClassifier(
+                **best_params,
                 random_state=42,
                 n_jobs=-1,
             )),
