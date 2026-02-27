@@ -2,21 +2,26 @@
 name = "data-science-agent-v2"
 version = "0.1.0"
 description = "Bank marketing classification - F1-optimized training pipeline"
-requires-python = ">=3.10"
+requires-python = ">=3.12,<3.13"
 dependencies = [
-    "numpy",
-    "pandas",
-    "scikit-learn",
-    "optuna",
-    "mlflow-skinny",
-    "pyspark",
-    "databricks-connect",
-    "python-dotenv",
-    "zstandard",
-    "xgboost",
-    "lightgbm",
-    "catboost",
+    "numpy>=2.2.6",
+    "pandas>=2.3.3",
+    "scikit-learn>=1.7.2",
+    "optuna>=4.7.0",
+    "mlflow-skinny>=3.10.0",
+    "zstandard>=0.25.0",
+    "xgboost>=3.2.0",
+    "lightgbm>=4.6.0",
+    "catboost>=1.2.10",
 ]
 
-[dependency-groups]
-dev = ["pytest"]
+[project.optional-dependencies]
+dev = [
+    "databricks-connect~=17.2",
+    "python-dotenv>=1.0",
+    "pytest",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
